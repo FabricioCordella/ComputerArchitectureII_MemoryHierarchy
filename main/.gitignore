@@ -1,5 +1,5 @@
-#iseconfig/
-#iseconfig/*
+iseconfig/
+iseconfig/*
 _xmsgs/
 _xmsgs/*
 main.xise
