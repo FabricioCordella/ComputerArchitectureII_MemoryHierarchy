@@ -4,6 +4,7 @@ This project was designed for the discipline of Computer Archtecture II - PUCRS
 
 ## TODO
 - [ ] Propagation Time
+- [ ] RECORD for caches
 - [ ] Cache L1
 - [ ] Cache L2
 - [ ] Benchmark tests
