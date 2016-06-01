@@ -278,7 +278,7 @@ begin
    --==============================================================================
                       
    -- select the first ALU operand                           
-   op1 <= pc  when inst_branch='1' else 
+   op1 <= npc  when inst_branch='1' else 
           RS; 
      
    -- select the second ALU operand

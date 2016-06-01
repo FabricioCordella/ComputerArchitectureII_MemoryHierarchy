@@ -138,6 +138,10 @@ architecture cpu_tb of cpu_tb is
     signal Dce_n, Dwe_n, Doe_n, Ice_n, Iwe_n, Ioe_n, ck, rst, rstCPU, hold, 
            go_i, go_d, ce, rw, bw: std_logic;
     
+	 signal IadressOut, IdataOut : std_logic_vector(31 downto 0) :=(others=>'0');
+	 
+	 signal barr_rst	:std_logic;
+	 
     file ARQ : TEXT open READ_MODE is "PCSpim.log";
  
 begin
@@ -145,12 +149,27 @@ begin
     Data_mem:  entity work.RAM_mem 
                generic map( START_ADDRESS => x"10010000" )
                port map (ce_n=>Dce_n, we_n=>Dwe_n, oe_n=>Doe_n, bw=>bw, address=>Dadress, data=>Ddata);
+
+	 -- BARRAMENTO PARA GERAR DELAY
+	 Barramento : entity work.Barramento
+					  port map (clock=>ck, 
+									reset => barr_rst, 
+									hold => hold, 
+									addressIn => Iadress,
+									addressOut=> IadressOut,
+									dataIn=>Idata,
+									dataOut=>IdataOut);
+
+	 barr_rst <= '0' when Ice_n='0' else '1';
                                             
     Instr_mem: entity work.RAM_mem 
                generic map( START_ADDRESS => x"00400020" )
-               port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+					--port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+               port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>IadressOut, data=>IdataOut);
+
         
-    hold <= '0';                                 
+     --hold <= '0';
+
 
     -- data memory signals --------------------------------------------------------
     Dce_n <= '0' when  ce='1' or go_d='1'             else '1';
@@ -172,10 +191,14 @@ begin
   
 
     cpu: entity work.MRstd  port map(
-              clock=>ck, reset=>rstCPU,	hold=>hold,
+              clock=>ck, 
+				  reset=>rstCPU,	
+				  hold=>hold,
               i_address => i_cpu_address,
               instruction => Idata,
-              ce=>ce,  rw=>rw,  bw=>bw,
+              ce=>ce,  
+				  rw=>rw,  
+				  bw=>bw,
               d_address => d_cpu_address,
               data => data_cpu
         ); 
