@@ -47,9 +47,9 @@ Each level of the hierarchy memory must have an propagation delay, as following:
 - Principal Memory: Acess time of 4 clocks.
 
 
-### ** Cache Designs: **
+### **Cache Designs:**
 
-#### ** Cache L1 **
+#### **Cache L1**
 
 
     	instruction 32bits
@@ -75,7 +75,7 @@ Each level of the hierarchy memory must have an propagation delay, as following:
     Linha4   11  |1| 26 | 32 | 32 | 32 | 32 |
             	 ----------------------------
 
-#### ** Cache L2 **
+#### **Cache L2**
 
     	instruction 32bits
     0000 0000 0000 0000 0000 0000 0000 0000				
