@@ -1,9 +1,9 @@
 -------------------------------------------------------------------------
 --
---  ImPoRtAnTe :   V E R S Ã O   S E M   M U L T I P L I C A Ç Ã O / D I V I S Ã O
---                 (moraes 23/março)
+--  ImPoRtAnTe :   V E R S  O   S E M   M U L T I P L I C A   O / D I V I S  O
+--                 (moraes 23/maro)
 --
---  MRstf -> versão standard, sem as multiplicações/divisões
+--  MRstf -> verso standard, sem as multiplicaes/divises
 --
 --  MR PROCESSOR   -   Ney Calazans / Fernando Moraes
 --
@@ -492,7 +492,8 @@ entity MRstd is
           ce, rw, bw: out std_logic;
           i_address, d_address: out std_logic_vector(31 downto 0);
           instruction: in std_logic_vector(31 downto 0);
-          data: inout std_logic_vector(31 downto 0));
+          data: inout std_logic_vector(31 downto 0);
+			 mem_access : out std_logic);
 end MRstd;
 
 architecture MRstd of MRstd is
@@ -505,7 +506,10 @@ architecture MRstd of MRstd is
                    instruction=>instruction, d_address=>d_address,  data=>data);
 
      ct: entity work.control_unit port map( ck=>clock, rst=>reset, hold=>hold, IR=>IR, uins=>uins);
-         
+
+
+	  mem_access <= uins.cy1;
+	  
      ce <= uins.ce;
      rw <= uins.rw; 
      bw <= uins.bw;
