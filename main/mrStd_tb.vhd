@@ -109,14 +109,88 @@ begin
             data(15 downto  8) <= RAM(CONV_INTEGER(low_address+1));
             data( 7 downto  0) <= RAM(CONV_INTEGER(low_address  ));
         else
+            --data(31 downto 24) <= (others=>'Z');
+            --data(23 downto 16) <= (others=>'Z');
+            --data(15 downto  8) <= (others=>'Z');
+            --data( 7 downto  0) <= (others=>'Z');
+        end if;
+   end process;   
+
+end RAM_mem;
+
+
+--------------------------------------------------------------------------
+-- Module implementing a behavioral model of an ASYNCHRONOUS INTERFACE RAM
+--------------------------------------------------------------------------
+library IEEE;
+use ieee.std_logic_1164.all;
+use ieee.STD_LOGIC_UNSIGNED.all;
+use work.aux_functions.all;
+
+entity INST_mem is
+      generic(  START_ADDRESS: reg32 := (others=>'0')  );
+      port(ce_n, we_n, oe_n, bw: in std_logic;
+			address: in reg32;
+			reset : in std_logic;
+			hold: out std_logic;
+			data: inout reg32
+			);
+end INST_mem;
+
+architecture INST_mem of INST_mem is 
+   signal RAM : memory;
+   signal tmp_address: reg32;
+	signal ready: std_logic:='0';
+   alias  low_address: reg16 is tmp_address(15 downto 0);    --  baixa para 16 bits devido ao CONV_INTEGER --
+begin     
+
+   tmp_address <= address - START_ADDRESS;   --  offset do endereçamento  -- 
+   
+   -- writes in memory ASYNCHRONOUSLY  -- LITTLE ENDIAN -------------------
+   process(ce_n, we_n, low_address, data)
+     begin
+       if ce_n='0' and we_n='0' then
+          if CONV_INTEGER(low_address)>=0 and CONV_INTEGER(low_address+3)<=MEMORY_SIZE then
+               if bw='1' then
+                   RAM(CONV_INTEGER(low_address+3)) <= data(31 downto 24);
+                   RAM(CONV_INTEGER(low_address+2)) <= data(23 downto 16);
+                   RAM(CONV_INTEGER(low_address+1)) <= data(15 downto  8);
+               end if;
+               RAM(CONV_INTEGER(low_address  )) <= data( 7 downto  0); 
+          end if;
+         end if;   
+    end process;   
+    
+   -- read from memory
+   --process(ce_n, oe_n, low_address)
+	process(ready, ce_n, oe_n, low_address)
+     begin
+	  if ready='1' or reset='1' then
+       if ce_n='0' and oe_n='0' and
+          CONV_INTEGER(low_address)>=0 and CONV_INTEGER(low_address+3)<=MEMORY_SIZE then
+            data(31 downto 24) <= RAM(CONV_INTEGER(low_address+3));
+            data(23 downto 16) <= RAM(CONV_INTEGER(low_address+2));
+            data(15 downto  8) <= RAM(CONV_INTEGER(low_address+1));
+            data( 7 downto  0) <= RAM(CONV_INTEGER(low_address  ));
+        else
             data(31 downto 24) <= (others=>'Z');
             data(23 downto 16) <= (others=>'Z');
             data(15 downto  8) <= (others=>'Z');
             data( 7 downto  0) <= (others=>'Z');
         end if;
+	  end if;
    end process;   
+	
+	process(address)
+	begin
+		hold <= '1', '0' after 40 ns;
+		ready <= '0', '1' after 40 ns;
+   end process;
+end INST_mem;
 
-end RAM_mem;
+
+
+
 
 -------------------------------------------------------------------------
 --  CPU PROCESSOR SIMULATION TESTBENCH
@@ -139,7 +213,7 @@ architecture cpu_tb of cpu_tb is
            go_i, go_d, ce, rw, bw: std_logic;
     
 	 signal IadressOut, IdataOut : std_logic_vector(31 downto 0) :=(others=>'0');
-	 
+	 signal ck_mp, ck_l2 : std_logic:='0';
 	 signal barr_rst	:std_logic;
 	 
     file ARQ : TEXT open READ_MODE is "PCSpim.log";
@@ -151,24 +225,28 @@ begin
                port map (ce_n=>Dce_n, we_n=>Dwe_n, oe_n=>Doe_n, bw=>bw, address=>Dadress, data=>Ddata);
 
 	 -- BARRAMENTO PARA GERAR DELAY
-	 Barramento : entity work.Barramento
-					  port map (clock=>ck, 
-									reset => barr_rst, 
-									hold => hold, 
-									addressIn => Iadress,
-									addressOut=> IadressOut,
-									dataIn=>Idata,
-									dataOut=>IdataOut);
+	 --Barramento : entity work.Barramento
+	--				  port map (clock=>ck, 
+	--								reset => barr_rst, 
+	--								hold => hold, 
+	--								addressIn => Iadress,
+	--								addressOut=> IadressOut,
+	--								dataIn=>Idata,
+	--								dataOut=>IdataOut);
 
-	 barr_rst <= '0' when Ice_n='0' else '1';
+	 --barr_rst <= '0' when Ice_n='0' else '1';
                                             
-    Instr_mem: entity work.RAM_mem 
+    Instr_mem: entity work.INST_mem 
                generic map( START_ADDRESS => x"00400020" )
-					--port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
-               port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>IadressOut, data=>IdataOut);
+					port map (hold=> hold,reset=>rst, ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+               --port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
 
-        
-     --hold <= '0';
+     
+	 --ck_l2 <= not ck_l2 	when (ck'event AND ck='1');
+	 --ck_mp <= not ck_mp when (ck_l2'event and ck_l2='1');
+	  
+	  
+    --hold <= '0';
 
 
     -- data memory signals --------------------------------------------------------
