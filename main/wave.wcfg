@@ -3,7 +3,7 @@
    <wave_state>
    </wave_state>
    <db_ref_list>
-      <db_ref path="/home/fabricio/Documents/PUCRS/Arquitetura_De_ComputadoresII/T3/Memory_Hierarchy/main/CPU_tb_isim_beh1.wdb" id="1" type="auto">
+      <db_ref path="/home/fabricio/Documents/PUCRS/Arquitetura_De_ComputadoresII/T3/Memory_Hierarchy/main/CPU_tb_isim_beh.wdb" id="1" type="auto">
          <top_modules>
             <top_module name="aux_functions" />
             <top_module name="cpu_tb" />
@@ -16,7 +16,7 @@
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="19" />
+   <WVObjectSize size="20" />
    <wvobject fp_name="/cpu_tb/iadress" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">iadress[31:0]</obj_property>
       <obj_property name="ObjectShortName">iadress[31:0]</obj_property>
@@ -97,5 +97,9 @@
    <wvobject fp_name="/cpu_tb/Instr_mem/mem_access" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">mem_access</obj_property>
       <obj_property name="ObjectShortName">mem_access</obj_property>
+   </wvobject>
+   <wvobject fp_name="/cpu_tb/cpu/uins" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">uins</obj_property>
+      <obj_property name="ObjectShortName">uins</obj_property>
    </wvobject>
 </wave_config>

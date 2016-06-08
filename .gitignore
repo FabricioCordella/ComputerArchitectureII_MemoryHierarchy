@@ -1,0 +1,16 @@
+main/iseconfig/
+main/iseconfig/*
+main/_xmsgs/
+main/_xmsgs/*
+main/main.xise
+main/*.log
+main/*.prj
+main/*wdb
+main/*.html
+main/*.exe
+main/*.cmd
+main/isim/
+main/main.gise
+main/*.ini
+main/*.xmsgs
+
