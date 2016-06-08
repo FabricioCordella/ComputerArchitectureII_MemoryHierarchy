@@ -148,8 +148,9 @@ begin
    tmp_address <= address - START_ADDRESS;   --  offset do endereamento  -- 
    
    -- writes in memory ASYNCHRONOUSLY  -- LITTLE ENDIAN -------------------
-   process(ce_n, we_n, low_address, data)
+   process(ready,ce_n, we_n, low_address, data)
      begin
+		if ready='1' or reset='1' then
        if ce_n='0' and we_n='0' then
           if CONV_INTEGER(low_address)>=0 and CONV_INTEGER(low_address+3)<=MEMORY_SIZE then
                if bw='1' then
@@ -159,7 +160,8 @@ begin
                end if;
                RAM(CONV_INTEGER(low_address  )) <= data( 7 downto  0); 
           end if;
-         end if;   
+         end if;
+		end if;
     end process;   
     
    -- read from memory
@@ -183,11 +185,15 @@ begin
 	  end if;
    end process;   
 	
-	process(mem_access)
+	--hold <= '0','1' after 80ns when mem_access='1' else '0';
+	--hold <= '0';
+	process(mem_access,reset)
 	begin
-		if mem_access'event and mem_access='1' then
-			hold <= '1', '0' after 40 ns;
-			ready <= '1' after 40 ns,'0' ;
+		if reset='1' then
+			hold<='0';
+		elsif mem_access'event and mem_access='1' then
+			hold <= '1', '0' after 80 ns;
+			ready <= '0','1' after 80 ns ;
 		end if;
    end process;
 end INST_mem;
@@ -293,7 +299,7 @@ begin
 				  mem_access=> mem_access
         ); 
 
-    rst <='1', '0' after 25 ns;       -- generates the reset signal 
+    rst <='1', '0' after 18 ns;       -- generates the reset signal 
 
     process                          -- generates the clock signal 
         begin
