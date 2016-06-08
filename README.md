@@ -3,7 +3,7 @@
 This project was designed for the discipline of Computer Archtecture II - PUCRS
 
 ## TODO
-- [ ] Propagation Time
+- [x] Propagation Time
 - [ ] RECORD for caches
 - [ ] Cache L1
 - [ ] Cache L2
