@@ -109,10 +109,10 @@ begin
             data(15 downto  8) <= RAM(CONV_INTEGER(low_address+1));
             data( 7 downto  0) <= RAM(CONV_INTEGER(low_address  ));
         else
-            --data(31 downto 24) <= (others=>'Z');
-            --data(23 downto 16) <= (others=>'Z');
-            --data(15 downto  8) <= (others=>'Z');
-            --data( 7 downto  0) <= (others=>'Z');
+            data(31 downto 24) <= (others=>'Z');
+            data(23 downto 16) <= (others=>'Z');
+            data(15 downto  8) <= (others=>'Z');
+            data( 7 downto  0) <= (others=>'Z');
         end if;
    end process;   
 
