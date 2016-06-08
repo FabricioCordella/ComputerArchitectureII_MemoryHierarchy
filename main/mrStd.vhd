@@ -38,12 +38,12 @@ package p_MRstd is
                 i:     inst_type;       -- operation specification
         end record;
 
-		  type blocksL1 is array (3 downto 0) of reg32;
+		  type blocksL1 is array (3 downto 0) of std_logic_vector(31 downto 0);--reg32;
 
 		  type linhaL1 is record
 					 validade : std_logic;
 					 tag : std_logic_vector(25 downto 0);
-					 blks : blockL1;
+					 blks : blocksL1;
 			end record;
 			
 			
@@ -499,7 +499,7 @@ use work.p_MRstd.all;
 
 entity MRstd is
     port( clock, reset: in std_logic;
-    	  hold: in std_logic;
+			 hold: in std_logic;
           ce, rw, bw: out std_logic;
           i_address, d_address: out std_logic_vector(31 downto 0);
           instruction: in std_logic_vector(31 downto 0);

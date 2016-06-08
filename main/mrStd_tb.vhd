@@ -28,6 +28,17 @@ package aux_functions is
    constant TAM_LINHA : integer := 200;
    
    function CONV_VECTOR( letra : string(1 to TAM_LINHA);  pos: integer ) return std_logic_vector;
+	
+	type blocksL1 is array (3 downto 0) of reg32 ;--:=(others=>'0');
+
+	type linhaL1 is record
+			 validade : std_logic ;--:= '0';
+			 tag : std_logic_vector(25 downto 0);--:=(others=>'0';);
+			 blks : blocksL1;
+	end record;
+			
+			
+	type TypeCacheL1 is array (3 downto 0) of linhaL1;
    
 end aux_functions;
 
@@ -207,6 +218,8 @@ use ieee.std_logic_1164.all;
 use ieee.STD_LOGIC_UNSIGNED.all;
 use work.aux_functions.all;
 
+
+
 entity CacheL1 is
       --generic(  START_ADDRESS: reg32 := (others=>'0')  );
       port(
@@ -221,8 +234,11 @@ end CacheL1;
 
 architecture CacheL1 of CacheL1 is 
 
-	signal Cache : CacheL1;
-	signal hit, miss: std_logic;
+	type type_state is (STOPPED, IDLE, VERIFY_CACHE, SEND_CPU, WAIT_B0,WAIT_B1, WAIT_B2, WAIT_B3, WRITE_CACHE);
+   signal PS, NS : type_state;
+
+	signal cache : TypeCacheL1:= (others=>(validade=>'0',tag=>(others=>'0'),blks=>(others=>(others=>'0'))));--('0',others=>'0',others=>(others=>'0')));
+	signal hit, miss: std_logic:='0';
 	signal linha, bloco : std_logic_vector(1 downto 0);
 	signal tag : std_logic_vector(25 downto 0);
 
@@ -239,11 +255,14 @@ begin
    process(clock, reset)
 	  begin
 		if reset='1' then
-		
+			hold<='0';
 		elsif clock'event and clock='1' then
 			if cache(CONV_INTEGER(linha)).validade ='0' then
 				cache_access <= '1';
-				
+				miss <= '1';
+				hold<='1';
+				addressOut <= address;
+				--wait for 80ns;
 				--cache(CONV_INTEGER(linha)).
 			end if;
 		end if;
@@ -282,7 +301,7 @@ architecture cpu_tb of cpu_tb is
 	 signal barr_rst	:std_logic;
 	 signal mem_access: std_logic;--:='0';
 	 signal addressTest : reg32:=x"00400020";
-	 signal hold : std_logic:='0';
+	 signal hold, hold_cache : std_logic:='0';
 	 signal addressOut : reg32;
 	 signal cache_access : std_logic;
 	 
@@ -313,9 +332,10 @@ begin
 		CacheL1: entity work.CacheL1
 					port map (	clock=> ck, 
 									reset=> rst, 
-									address => Iaddress, 
+									address => Iadress, 
 									data=>Idata, 
 									cache_access=>cache_access,
+									hold=>hold_cache,
 									addressOut=> addressOut
 									);
 
@@ -355,7 +375,8 @@ begin
     cpu: entity work.MRstd  port map(
               clock=>ck, 
 				  reset=>rstCPU,	
-				  hold=>hold,
+				  --hold=>hold,
+				  hold => hold_cache,
               i_address => i_cpu_address,
               instruction => Idata,
               ce=>ce,  
