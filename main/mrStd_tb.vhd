@@ -235,7 +235,7 @@ end CacheL1;
 architecture CacheL1 of CacheL1 is 
 
 	type type_state is (STOPPED, IDLE, VERIFY_CACHE, SEND_CPU, WAIT_B0,WAIT_B1, WAIT_B2, WAIT_B3, WRITE_CACHE);
-   signal PS, NS : type_state;
+   signal EA, PE : type_state;
 
 	signal cache : TypeCacheL1:= (others=>(validade=>'0',tag=>(others=>'0'),blks=>(others=>(others=>'0'))));--('0',others=>'0',others=>(others=>'0')));
 	signal hit, miss: std_logic:='0';
@@ -247,9 +247,83 @@ architecture CacheL1 of CacheL1 is
 	--signal ready: std_logic:='0';
    --alias  low_address: reg16 is tmp_address(15 downto 0);    --  baixa para 16 bits devido ao CONV_INTEGER --
 begin     
+
+	 process(clock, reset)
+    begin
+       if reset='1' then
+         EA <= STOPPED;          -- Sidle is the state the machine stays while processor is being reset
+       elsif ck'event and ck='1' then
+		   --if hold='0' then
+				--if PS=Sidle then
+					--PS <= Sfetch;
+				--else
+			EA <= PE;
+				--end if;
+			--end if;
+		 end if;
+    end process;
+
+	process(EA,PE)
+	begin
+		case EA is
+				when STOPPED => 
+						if reset='1' then
+							PE <= STOPPED;
+						else
+							PE <= IDLE;
+						end if;
+						
+				when IDLE =>
+						
+				when	VERIFY_CACHE, 
+				when	SEND_CPU, 
+				when	WAIT_B0,
+				when	WAIT_B1, 
+				when	WAIT_B2, 
+				when	WAIT_B3, 
+				when	WRITE_CACHE
+		end case;
+	end process;
+
+--		STOPPED
+--			|
+--			|
+--			|
+--			|
+--			V
+--		 IDLE <------------------------------------------
+--			|															|
+--			|															|
+--			|							C<4							|
+--			|						----------						|
+--			V						|			|						|
+--	VERIFY_CACHE -------> WAIT_B0	<---						|
+--			|						|									|
+--			|						| C=4								|
+--			|						V									|
+--			|					 WAIT_B1 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
+--			|						V									|
+--			|HIT='1' 		 WAIT_B2 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
+--			|						V									|
+--			|					 WAIT_B3 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	------						|
+--			|						|									|
+--			V						V									|
+--		SEND_CPU	<-------WRITE_CACHE							|
+--			|															|
+--			----------------------------------------------
+
+
+
 	tag	<= address(31 downto 6);
 	bloco <= address(3 downto 2);
 	linha <= address(5 downto 4);
+
 
 
    process(clock, reset)
