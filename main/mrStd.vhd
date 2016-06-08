@@ -37,6 +37,17 @@ package p_MRstd is
                 bw:    std_logic;       -- Byte-word control (mem write only)
                 i:     inst_type;       -- operation specification
         end record;
+
+		  type blocksL1 is array (3 downto 0) of reg32;
+
+		  type linhaL1 is record
+					 validade : std_logic;
+					 tag : std_logic_vector(25 downto 0);
+					 blks : blockL1;
+			end record;
+			
+			
+			type cacheL1 is array (3 downto 0) of linhaL1;
          
 end p_MRstd;
 

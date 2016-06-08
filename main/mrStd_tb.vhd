@@ -199,6 +199,59 @@ begin
 end INST_mem;
 
 
+--------------------------------------------------------------------------
+-- Module implementing a behavioral model of an CACHE L1
+--------------------------------------------------------------------------
+library IEEE;
+use ieee.std_logic_1164.all;
+use ieee.STD_LOGIC_UNSIGNED.all;
+use work.aux_functions.all;
+
+entity CacheL1 is
+      --generic(  START_ADDRESS: reg32 := (others=>'0')  );
+      port(
+			clock, reset : in std_logic;
+			address: in reg32;
+			data: inout reg32;
+			addressOut : out reg32;
+			cache_access : out std_logic;
+			hold: out std_logic
+			);
+end CacheL1;
+
+architecture CacheL1 of CacheL1 is 
+
+	signal Cache : CacheL1;
+	signal hit, miss: std_logic;
+	signal linha, bloco : std_logic_vector(1 downto 0);
+	signal tag : std_logic_vector(25 downto 0);
+
+   --signal RAM : memory;
+   --signal tmp_address: reg32;
+	--signal ready: std_logic:='0';
+   --alias  low_address: reg16 is tmp_address(15 downto 0);    --  baixa para 16 bits devido ao CONV_INTEGER --
+begin     
+	tag	<= address(31 downto 6);
+	bloco <= address(3 downto 2);
+	linha <= address(5 downto 4);
+
+
+   process(clock, reset)
+	  begin
+		if reset='1' then
+		
+		elsif clock'event and clock='1' then
+			if cache(CONV_INTEGER(linha)).validade ='0' then
+				cache_access <= '1';
+				
+				--cache(CONV_INTEGER(linha)).
+			end if;
+		end if;
+	end process;
+	
+end CacheL1;
+
+
 
 
 
@@ -230,6 +283,8 @@ architecture cpu_tb of cpu_tb is
 	 signal mem_access: std_logic;--:='0';
 	 signal addressTest : reg32:=x"00400020";
 	 signal hold : std_logic:='0';
+	 signal addressOut : reg32;
+	 signal cache_access : std_logic;
 	 
     file ARQ : TEXT open READ_MODE is "PCSpim.log";
  
@@ -239,22 +294,34 @@ begin
                generic map( START_ADDRESS => x"10010000" )
                port map (ce_n=>Dce_n, we_n=>Dwe_n, oe_n=>Doe_n, bw=>bw, address=>Dadress, data=>Ddata);
 
-	 -- BARRAMENTO PARA GERAR DELAY
-	 --Barramento : entity work.Barramento
-	--				  port map (clock=>ck, 
-	--								reset => barr_rst, 
-	--								hold => hold, 
-	--								addressIn => Iadress,
-	--								addressOut=> IadressOut,
-	--								dataIn=>Idata,
-	--								dataOut=>IdataOut);
-
-	 --barr_rst <= '0' when Ice_n='0' else '1';
                                             
     Instr_mem: entity work.INST_mem 
                generic map( START_ADDRESS => x"00400020" )
-					port map (reset=> rst, mem_access=>mem_access, hold=> hold, ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+					port map (	reset=> rst, 
+									mem_access=>cache_access, 
+									hold=> hold, 
+									ce_n=>Ice_n, 
+									we_n=>Iwe_n, 
+									oe_n=>Ioe_n, 
+									bw=>'1', 
+									address=>addressOut, 
+									data=>Idata
+									);
                --port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+
+	 --TODO
+		CacheL1: entity work.CacheL1
+					port map (	clock=> ck, 
+									reset=> rst, 
+									address => Iaddress, 
+									data=>Idata, 
+									cache_access=>cache_access,
+									addressOut=> addressOut
+									);
+
+			
+
+
 
 	 addressTest <= Iadress when rst='1' else
 						addressTest+4 after 80ns;
