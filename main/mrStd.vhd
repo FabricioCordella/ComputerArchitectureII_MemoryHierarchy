@@ -504,7 +504,7 @@ entity MRstd is
           i_address, d_address: out std_logic_vector(31 downto 0);
           instruction: in std_logic_vector(31 downto 0);
           data: inout std_logic_vector(31 downto 0);
-			 mem_access : out std_logic);
+			 cache_access : out std_logic);
 end MRstd;
 
 architecture MRstd of MRstd is
@@ -519,7 +519,7 @@ architecture MRstd of MRstd is
      ct: entity work.control_unit port map( ck=>clock, rst=>reset, hold=>hold, IR=>IR, uins=>uins);
 
 
-	  mem_access <= uins.cy1;
+	  cache_access <= uins.cy1;
 	  
      ce <= uins.ce;
      rw <= uins.rw; 

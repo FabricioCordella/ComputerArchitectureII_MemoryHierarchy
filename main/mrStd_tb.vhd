@@ -29,6 +29,8 @@ package aux_functions is
    
    function CONV_VECTOR( letra : string(1 to TAM_LINHA);  pos: integer ) return std_logic_vector;
 	
+	function CONV_BIN( number : integer) return std_logic_vector;
+	
 	type blocksL1 is array (3 downto 0) of reg32 ;--:=(others=>'0');
 
 	type linhaL1 is record
@@ -43,6 +45,20 @@ package aux_functions is
 end aux_functions;
 
 package body aux_functions is
+		
+
+	function CONV_BIN( number : integer ) return std_logic_vector is
+		variable bin : std_logic_vector(1 downto 0);
+	begin
+		case(number) is
+			when 0 => bin := "00";
+			when 1 => bin := "01";
+			when 2 => bin := "10";
+			when 3 => bin := "11";
+		end case;
+		return bin;
+	end CONV_BIN;
+
 
   --
   -- converte um caracter de uma dada linha em um std_logic_vector
@@ -144,7 +160,7 @@ entity INST_mem is
 			address: in reg32;
 			reset : in std_logic;
 			mem_access : in std_logic;
-			hold: out std_logic;
+			--hold: out std_logic;
 			data: inout reg32
 			);
 end INST_mem;
@@ -159,7 +175,7 @@ begin
    tmp_address <= address - START_ADDRESS;   --  offset do endereamento  -- 
    
    -- writes in memory ASYNCHRONOUSLY  -- LITTLE ENDIAN -------------------
-   process(ready,ce_n, we_n, low_address, data)
+   process(ready,ce_n, we_n, low_address)--, data)
      begin
 		if ready='1' or reset='1' then
        if ce_n='0' and we_n='0' then
@@ -198,12 +214,13 @@ begin
 	
 	--hold <= '0','1' after 80ns when mem_access='1' else '0';
 	--hold <= '0';
-	process(mem_access,reset)
+	process(address,reset)
 	begin
 		if reset='1' then
-			hold<='0';
-		elsif mem_access'event and mem_access='1' then
-			hold <= '1', '0' after 80 ns;
+			--hold<='0';
+			--data<=(others=>'0');
+		elsif address'event then
+			--hold <= '1', '0' after 80 ns;
 			ready <= '0','1' after 80 ns ;
 		end if;
    end process;
@@ -225,9 +242,11 @@ entity CacheL1 is
       port(
 			clock, reset : in std_logic;
 			address: in reg32;
-			data: inout reg32;
+			dataIn: in reg32;
+			dataOut : out reg32;
 			addressOut : out reg32;
-			cache_access : out std_logic;
+			mem_access : out std_logic;
+			cache_access : in std_logic;
 			hold: out std_logic
 			);
 end CacheL1;
@@ -241,7 +260,7 @@ architecture CacheL1 of CacheL1 is
 	signal hit, miss: std_logic:='0';
 	signal linha, bloco : std_logic_vector(1 downto 0);
 	signal tag : std_logic_vector(25 downto 0);
-	signal c		: integer:='0';
+	signal c		: integer:=0;
    --signal RAM : memory;
    --signal tmp_address: reg32;
 	--signal ready: std_logic:='0';
@@ -251,12 +270,14 @@ begin
 	tag	<= address(31 downto 6);
 	bloco <= address(3 downto 2);
 	linha <= address(5 downto 4);
+	mem_access <= '1','0' after 10ns when c'event else '0';
 
 	 process(clock, reset)
     begin
        if reset='1' then
+			--hold<='0';
          EA <= STOPPED;          -- Sidle is the state the machine stays while processor is being reset
-       elsif ck'event and ck='1' then
+       elsif clock'event and clock='1' then
 		   --if hold='0' then
 				--if PS=Sidle then
 					--PS <= Sfetch;
@@ -267,11 +288,12 @@ begin
 		 end if;
     end process;
 
-	process(EA,PE, address,data)
+	process(EA,PE, address,dataIn,cache_access)
 	begin
-		if 
+		--if 
 		case EA is
 				when STOPPED => 
+						hold<='0';
 						if reset='1' then
 							PE <= STOPPED;
 						else
@@ -279,36 +301,68 @@ begin
 						end if;
 						
 				when IDLE =>
-						if address'event then
+						--if address'event then
+						if cache_access='1' then
 							PE <= VERIFY_CACHE;
-						
+						end if;
 				when	VERIFY_CACHE =>
 						if cache(CONV_INTEGER(linha)).validade ='1' and cache(CONV_INTEGER(linha)).tag = tag then
-							hit<'1';
+							hit<='1';
 							PE <= SEND_CPU;
 						else
 							miss<='1';
 							--addressOut <= address;
 							hold<='1';
-							c=0;
+							c<=0;
 							PE<=WAIT_B0;
 						end if;
 								
 				when	WAIT_B0 => 
-						--if address'event then
-						if c<4 then
-							PE <= WAIT_B0;
-							addressOut<= tag&linha&-->>>>>>>>>>TODO CONVERTER INT-> BINARIO<<<<<<&"00";
-							cache(CONV_INTEGER(linha)).blks(c) <= data;
-							c<=c+1;
-						if c=4 then
-							PE=<WAIT_B1
-							
-				when	WAIT_B1, 
-				when	WAIT_B2, 
-				when	WAIT_B3, 
-				when	WRITE_CACHE
-				when	SEND_CPU, 
+						
+						--if c<4 then
+							addressOut<= tag&linha&"00"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(0) <= dataIn;
+						--		c<=c+1;
+								PE <= WAIT_B1;
+							end if;
+						--else 
+						--	PE<=WAIT_B1;
+						--	c<=0;
+						--end if;
+				when	WAIT_B1=>
+							addressOut<= tag&linha&"01"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(1) <= dataIn;
+								--c<=c+1;
+								PE <= WAIT_B2;				
+							end if;
+				when	WAIT_B2=>
+							addressOut<= tag&linha&"10"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(2) <= dataIn;
+								--c<=c+1;
+								PE <= WAIT_B3;
+							end if;
+				when	WAIT_B3=> 
+							addressOut<= tag&linha&"11"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(3) <= dataIn;
+								--c<=c+1;
+								PE <= WRITE_CACHE;
+							end if;
+				
+				when	WRITE_CACHE =>
+							cache(CONV_INTEGER(linha)).tag <= tag;
+							cache(CONV_INTEGER(linha)).validade <= '1';
+							PE <= SEND_CPU;
+				when	SEND_CPU=>
+							hit <='0';
+							miss<='0';
+							hold<='0';
+							dataOut <= cache(CONV_INTEGER(linha)).blks(CONV_INTEGER(bloco));
+							PE<=IDLE;
+				
 		end case;
 	end process;
 
@@ -350,21 +404,21 @@ begin
 
 
 
-   process(clock, reset)
-	  begin
-		if reset='1' then
-			hold<='0';
-		elsif clock'event and clock='1' then
-			if cache(CONV_INTEGER(linha)).validade ='0' then
-				cache_access <= '1';
-				miss <= '1';
-				hold<='1';
-				addressOut <= address;
-				--wait for 80ns;
-				--cache(CONV_INTEGER(linha)).
-			end if;
-		end if;
-	end process;
+   --process(clock, reset)
+	--  begin
+	--	if reset='1' then
+	--		hold<='0';
+	--	elsif clock'event and clock='1' then
+	--		if cache(CONV_INTEGER(linha)).validade ='0' then
+	--			cache_access <= '1';
+	--			miss <= '1';
+	--			hold<='1';
+	--			addressOut <= address;
+	--			--wait for 80ns;
+	--			--cache(CONV_INTEGER(linha)).
+	--		end if;
+	--	end if;
+	--end process;
 	
 end CacheL1;
 
@@ -402,6 +456,7 @@ architecture cpu_tb of cpu_tb is
 	 signal hold, hold_cache : std_logic:='0';
 	 signal addressOut : reg32;
 	 signal cache_access : std_logic;
+	 signal addressMem,IdataMem : reg32;
 	 
     file ARQ : TEXT open READ_MODE is "PCSpim.log";
  
@@ -415,26 +470,31 @@ begin
     Instr_mem: entity work.INST_mem 
                generic map( START_ADDRESS => x"00400020" )
 					port map (	reset=> rst, 
-									mem_access=>cache_access, 
-									hold=> hold, 
+									mem_access=>mem_access, 
+									--hold=> hold, 
 									ce_n=>Ice_n, 
 									we_n=>Iwe_n, 
 									oe_n=>Ioe_n, 
 									bw=>'1', 
-									address=>addressOut, 
-									data=>Idata
+									address=>addressMem, 
+									data=>IdataMem
 									);
                --port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
+
+	IdataMem <=tb_data when rstCPU='1' else (others => 'Z');
+	addressMem <= tb_add  when rstCPU='1' else addressOut;
 
 	 --TODO
 		CacheL1: entity work.CacheL1
 					port map (	clock=> ck, 
 									reset=> rst, 
-									address => Iadress, 
-									data=>Idata, 
-									cache_access=>cache_access,
+									address => Iadress,
+									dataIn=>IdataMem,
+									dataOut=>Idata, 
 									hold=>hold_cache,
-									addressOut=> addressOut
+									addressOut=> addressOut,									
+									cache_access=>cache_access,
+									mem_access=>mem_access
 									);
 
 			
@@ -468,7 +528,7 @@ begin
     
     Iadress <= tb_add  when rstCPU='1' else i_cpu_address;
     Idata   <= tb_data when rstCPU='1' else (others => 'Z'); 
-  
+	 
 
     cpu: entity work.MRstd  port map(
               clock=>ck, 
@@ -482,7 +542,8 @@ begin
 				  bw=>bw,
               d_address => d_cpu_address,
               data => data_cpu,
-				  mem_access=> mem_access
+				  --mem_access=> mem_access
+				  cache_access=> cache_access
         ); 
 
     rst <='1', '0' after 18 ns;       -- generates the reset signal 
