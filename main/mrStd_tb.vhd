@@ -241,12 +241,16 @@ architecture CacheL1 of CacheL1 is
 	signal hit, miss: std_logic:='0';
 	signal linha, bloco : std_logic_vector(1 downto 0);
 	signal tag : std_logic_vector(25 downto 0);
-
+	signal c		: integer:='0';
    --signal RAM : memory;
    --signal tmp_address: reg32;
 	--signal ready: std_logic:='0';
    --alias  low_address: reg16 is tmp_address(15 downto 0);    --  baixa para 16 bits devido ao CONV_INTEGER --
 begin     
+
+	tag	<= address(31 downto 6);
+	bloco <= address(3 downto 2);
+	linha <= address(5 downto 4);
 
 	 process(clock, reset)
     begin
@@ -263,8 +267,9 @@ begin
 		 end if;
     end process;
 
-	process(EA,PE)
+	process(EA,PE, address,data)
 	begin
+		if 
 		case EA is
 				when STOPPED => 
 						if reset='1' then
@@ -274,32 +279,53 @@ begin
 						end if;
 						
 				when IDLE =>
+						if address'event then
+							PE <= VERIFY_CACHE;
 						
-				when	VERIFY_CACHE, 
-				when	SEND_CPU, 
-				when	WAIT_B0,
+				when	VERIFY_CACHE =>
+						if cache(CONV_INTEGER(linha)).validade ='1' and cache(CONV_INTEGER(linha)).tag = tag then
+							hit<'1';
+							PE <= SEND_CPU;
+						else
+							miss<='1';
+							--addressOut <= address;
+							hold<='1';
+							c=0;
+							PE<=WAIT_B0;
+						end if;
+								
+				when	WAIT_B0 => 
+						--if address'event then
+						if c<4 then
+							PE <= WAIT_B0;
+							addressOut<= tag&linha&-->>>>>>>>>>TODO CONVERTER INT-> BINARIO<<<<<<&"00";
+							cache(CONV_INTEGER(linha)).blks(c) <= data;
+							c<=c+1;
+						if c=4 then
+							PE=<WAIT_B1
+							
 				when	WAIT_B1, 
 				when	WAIT_B2, 
 				when	WAIT_B3, 
 				when	WRITE_CACHE
+				when	SEND_CPU, 
 		end case;
 	end process;
 
 --		STOPPED
 --			|
 --			|
---			|
---			|
 --			V
 --		 IDLE <------------------------------------------
 --			|															|
 --			|															|
---			|							C<4							|
---			|						----------						|
---			V						|			|						|
---	VERIFY_CACHE -------> WAIT_B0	<---						|
+--			|															|
+--	 VERIFY_CACHE -------> WRITE_CACHE						|
 --			|						|									|
---			|						| C=4								|
+--			|						V		C<4						|
+--			|					 WAIT_B1 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
 --			|						V									|
 --			|					 WAIT_B1 ----						|
 --			|						|	^		|C<4					|
@@ -313,16 +339,14 @@ begin
 --			|						|	^		|C<4					|
 --			|					C=4|	------						|
 --			|						|									|
---			V						V									|
---		SEND_CPU	<-------WRITE_CACHE							|
+--			V						|									|
+--		SEND_CPU	<------------									|
 --			|															|
 --			----------------------------------------------
 
 
 
-	tag	<= address(31 downto 6);
-	bloco <= address(3 downto 2);
-	linha <= address(5 downto 4);
+
 
 
 
