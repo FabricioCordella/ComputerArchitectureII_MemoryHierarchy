@@ -31,17 +31,30 @@ package aux_functions is
 	
 	function CONV_BIN( number : integer) return std_logic_vector;
 	
-	type blocksL1 is array (3 downto 0) of reg32 ;--:=(others=>'0');
-
+	
+	-- Definicao da cacheL1 - mapeamento direto
+	type blocksL1 is array (3 downto 0) of reg32 ;
 	type linhaL1 is record
 			 validade : std_logic ;--:= '0';
-			 tag : std_logic_vector(25 downto 0);--:=(others=>'0';);
+			 tag : std_logic_vector(25 downto 0);
 			 blks : blocksL1;
 	end record;
-			
-			
 	type TypeCacheL1 is array (3 downto 0) of linhaL1;
-   
+	
+	-- Definicao da cacheL2 - mapeamento associativo
+	type blocksL2 is array (7 downto 0) of reg32 ;
+	type linhaL2 is record
+			 validade : std_logic ;
+			 --tag : std_logic_vector(23 downto 0);
+			 blks : blocksL2;
+	end record;
+	type TypeCacheL2 is array (7 downto 0) of linhaL2;
+	
+	type MemoriaAssociativa is record
+			 tag: std_logic_vector(26 downto 0);
+	end record;
+	type MA is array (7 downto 0) of MemoriaAssociativa;
+	
 end aux_functions;
 
 package body aux_functions is
@@ -255,42 +268,30 @@ architecture CacheL1 of CacheL1 is
 
 	type type_state is (STOPPED, IDLE, VERIFY_CACHE, SEND_CPU, WAIT_B0,WAIT_B1, WAIT_B2, WAIT_B3, WRITE_CACHE);
    signal EA, PE : type_state;
-
 	signal cache : TypeCacheL1:= (others=>(validade=>'0',tag=>(others=>'0'),blks=>(others=>(others=>'0'))));--('0',others=>'0',others=>(others=>'0')));
 	signal hit, miss: std_logic:='0';
 	signal linha, bloco : std_logic_vector(1 downto 0);
 	signal tag : std_logic_vector(25 downto 0);
 	signal c		: integer:=0;
-   --signal RAM : memory;
-   --signal tmp_address: reg32;
-	--signal ready: std_logic:='0';
-   --alias  low_address: reg16 is tmp_address(15 downto 0);    --  baixa para 16 bits devido ao CONV_INTEGER --
+
 begin     
 
 	tag	<= address(31 downto 6);
 	bloco <= address(3 downto 2);
 	linha <= address(5 downto 4);
-	mem_access <= '1','0' after 10ns when c'event else '0';
+	mem_access <= miss;
 
 	 process(clock, reset)
     begin
        if reset='1' then
-			--hold<='0';
-         EA <= STOPPED;          -- Sidle is the state the machine stays while processor is being reset
+         EA <= STOPPED;
        elsif clock'event and clock='1' then
-		   --if hold='0' then
-				--if PS=Sidle then
-					--PS <= Sfetch;
-				--else
 			EA <= PE;
-				--end if;
-			--end if;
 		 end if;
     end process;
 
 	process(EA,PE, address,dataIn,cache_access)
 	begin
-		--if 
 		case EA is
 				when STOPPED => 
 						hold<='0';
@@ -301,7 +302,6 @@ begin
 						end if;
 						
 				when IDLE =>
-						--if address'event then
 						if cache_access='1' then
 							PE <= VERIFY_CACHE;
 						end if;
@@ -311,44 +311,33 @@ begin
 							PE <= SEND_CPU;
 						else
 							miss<='1';
-							--addressOut <= address;
 							hold<='1';
 							c<=0;
 							PE<=WAIT_B0;
 						end if;
 								
 				when	WAIT_B0 => 
-						
-						--if c<4 then
 							addressOut<= tag&linha&"00"&"00";
 							if dataIn'event then
 								cache(CONV_INTEGER(linha)).blks(0) <= dataIn;
-						--		c<=c+1;
 								PE <= WAIT_B1;
 							end if;
-						--else 
-						--	PE<=WAIT_B1;
-						--	c<=0;
-						--end if;
 				when	WAIT_B1=>
 							addressOut<= tag&linha&"01"&"00";
 							if dataIn'event then
 								cache(CONV_INTEGER(linha)).blks(1) <= dataIn;
-								--c<=c+1;
 								PE <= WAIT_B2;				
 							end if;
 				when	WAIT_B2=>
 							addressOut<= tag&linha&"10"&"00";
 							if dataIn'event then
 								cache(CONV_INTEGER(linha)).blks(2) <= dataIn;
-								--c<=c+1;
 								PE <= WAIT_B3;
 							end if;
 				when	WAIT_B3=> 
 							addressOut<= tag&linha&"11"&"00";
 							if dataIn'event then
 								cache(CONV_INTEGER(linha)).blks(3) <= dataIn;
-								--c<=c+1;
 								PE <= WRITE_CACHE;
 							end if;
 				
@@ -398,29 +387,215 @@ begin
 --			|															|
 --			----------------------------------------------
 
-
-
-
-
-
-
-   --process(clock, reset)
-	--  begin
-	--	if reset='1' then
-	--		hold<='0';
-	--	elsif clock'event and clock='1' then
-	--		if cache(CONV_INTEGER(linha)).validade ='0' then
-	--			cache_access <= '1';
-	--			miss <= '1';
-	--			hold<='1';
-	--			addressOut <= address;
-	--			--wait for 80ns;
-	--			--cache(CONV_INTEGER(linha)).
-	--		end if;
-	--	end if;
-	--end process;
-	
 end CacheL1;
+library ieee;
+use IEEE.std_logic_1164.all;
+use IEEE.std_logic_unsigned.all;          
+--use STD.TEXTIO.all;
+use work.aux_functions.all;
+
+
+entity CacheL2 is
+      --generic(  START_ADDRESS: reg32 := (others=>'0')  );
+      port(
+			clock, reset : in std_logic;
+			address: in reg32;
+			dataIn: in reg32;
+			dataOut : out reg32;
+			addressOut : out reg32;
+			mem_access : out std_logic;
+			cache_access : in std_logic
+			--hold: out std_logic
+			);
+end CacheL2;
+
+architecture CacheL2 of CacheL2 is 
+
+	type type_state is (STOPPED, IDLE, VERIFY_CACHE, SEND_CPU, WAIT_B0,WAIT_B1, WAIT_B2, WAIT_B3, WAIT_B4,WAIT_B5, WAIT_B6, WAIT_B7, WRITE_CACHE);
+   signal EA, PE : type_state;
+	signal cache : TypeCacheL2:= (others=>(validade=>'0',blks=>(others=>(others=>'0'))));--('0',others=>'0',others=>(others=>'0')));
+	signal SetMemory : MA:= (others=>(tag=>(others=>'0')));
+	signal hit, miss: std_logic:='0';
+	signal linha, bloco : std_logic_vector(2 downto 0):=(others=>'0');
+	signal tag : std_logic_vector(26 downto 0);
+	--signal c		: integer:=0;
+	--signal c : std_logic_vector(3 downto 0);
+	
+begin     
+
+	tag	<= address(31 downto 5);
+	bloco <= address(4 downto 2);
+	--linha <= address(7 downto 5);
+	mem_access <= '1','0' after 100ns when miss'event else '0';
+
+	 process(clock, reset)
+    begin
+       if reset='1' then
+         EA <= STOPPED;
+       elsif clock'event and clock='1' then
+			EA <= PE;
+		 end if;
+    end process;
+
+	process(EA,PE, address,dataIn,cache_access,clock)
+	begin
+		--if clock='1' then
+		case EA is
+				when STOPPED => 
+						--hold<='0';
+						if reset='1' then
+							PE <= STOPPED;
+						else
+							PE <= IDLE;
+						end if;
+						
+				when IDLE =>
+						if cache_access='1' then
+							PE <= VERIFY_CACHE;
+						end if;
+				when	VERIFY_CACHE =>
+						if tag=SetMemory(0).tag then
+								linha<="000";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(1).tag then
+								linha<="001";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(2).tag then
+								linha<="010";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(3).tag then
+								linha<="011";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(4).tag then
+								linha<="100";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(5).tag then
+								linha<="101";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(6).tag then
+								linha<="110";
+								hit<='1';
+								PE<=SEND_CPU;
+						elsif tag=SetMemory(7).tag then
+								linha<="111";
+								hit<='1';
+								PE<=SEND_CPU;
+						else 
+								miss<='1';
+								--linha<="ZZZ";
+								PE<=WAIT_B0;
+						end if;
+
+							
+				when	WAIT_B0 => 
+							addressOut<= tag&"000"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(0) <= dataIn;
+								PE <= WAIT_B1;
+							end if;
+				when	WAIT_B1=>
+							addressOut<= tag&"001"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(1) <= dataIn;
+								PE <= WAIT_B2;				
+							end if;
+				when	WAIT_B2=>
+							addressOut<= tag&"010"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(2) <= dataIn;
+								PE <= WAIT_B3;
+							end if;
+				when	WAIT_B3=> 
+							addressOut<= tag&"011"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(3) <= dataIn;
+								PE <= WAIT_B4;
+							end if;
+				when	WAIT_B4 => 
+							addressOut<= tag&"100"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(4) <= dataIn;
+								PE <= WAIT_B5;
+							end if;
+				when	WAIT_B5=>
+							addressOut<= tag&"101"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(5) <= dataIn;
+								PE <= WAIT_B6;				
+							end if;
+				when	WAIT_B6=>
+							addressOut<= tag&"110"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(6) <= dataIn;
+								PE <= WAIT_B7;
+							end if;
+				when	WAIT_B7=> 
+							addressOut<= tag&"111"&"00";
+							if dataIn'event then
+								cache(CONV_INTEGER(linha)).blks(7) <= dataIn;
+								PE <= WRITE_CACHE;
+							end if;
+				
+				when	WRITE_CACHE =>
+						--if clock'event and clock='1' then
+						SetMemory(CONV_INTEGER(linha)).tag <= tag;
+						--cache(
+						cache(CONV_INTEGER(linha)).validade <= '1';
+						if(EA'event) then
+							linha<= linha+1;
+						end if;
+						PE <= SEND_CPU;
+				when	SEND_CPU=>
+							hit <='0';
+							miss<='0';
+							--hold<='0';
+							dataOut <= cache(CONV_INTEGER(linha)).blks(CONV_INTEGER(bloco));
+							PE<=IDLE;
+				
+		end case;
+		--end if;
+	end process;
+
+--		STOPPED
+--			|
+--			|
+--			V
+--		 IDLE <------------------------------------------
+--			|															|
+--			|															|
+--			|															|
+--	 VERIFY_CACHE -------> WRITE_CACHE						|
+--			|						|									|
+--			|						V		C<4						|
+--			|					 WAIT_B1 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
+--			|						V									|
+--			|					 WAIT_B1 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
+--			|						V									|
+--			|HIT='1' 		 WAIT_B2 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	-------						|
+--			|						V									|
+--			|					 WAIT_B3 ----						|
+--			|						|	^		|C<4					|
+--			|					C=4|	------						|
+--			|						|									|
+--			V						|									|
+--		SEND_CPU	<------------									|
+--			|															|
+--			----------------------------------------------
+
+end CacheL2;
+
 
 
 
@@ -455,8 +630,10 @@ architecture cpu_tb of cpu_tb is
 	 signal addressTest : reg32:=x"00400020";
 	 signal hold, hold_cache : std_logic:='0';
 	 signal addressOut : reg32;
-	 signal cache_access : std_logic;
+	 signal cache_access,cache_accessL2 : std_logic;
 	 signal addressMem,IdataMem : reg32;
+	 signal IdataInL2, IdataOutL2:reg32;
+	 signal IaddressOutL2, IaddressInL2:reg32;
 	 
     file ARQ : TEXT open READ_MODE is "PCSpim.log";
  
@@ -482,29 +659,36 @@ begin
                --port map (ce_n=>Ice_n, we_n=>Iwe_n, oe_n=>Ioe_n, bw=>'1', address=>Iadress, data=>Idata);
 
 	IdataMem <=tb_data when rstCPU='1' else (others => 'Z');
-	addressMem <= tb_add  when rstCPU='1' else addressOut;
+	addressMem <= tb_add  when rstCPU='1' else IaddressOutL2;
 
-	 --TODO
+
 		CacheL1: entity work.CacheL1
 					port map (	clock=> ck, 
 									reset=> rst, 
 									address => Iadress,
-									dataIn=>IdataMem,
+									addressOut=> IaddressInL2,
+									--dataIn=>IdataMem,
+									dataIn=>IdataOutL2,
 									dataOut=>Idata, 
 									hold=>hold_cache,
-									addressOut=> addressOut,									
 									cache_access=>cache_access,
+									mem_access=>cache_accessL2
+									);
+		CacheL2: entity work.CacheL2
+					port map (	clock=> ck, 
+									reset=> rst, 
+									address => IaddressInL2,
+									addressOut=> IaddressOutL2,
+									dataIn=>IdataMem,
+									dataOut=>IdataOutL2, 
+									--hold=>hold_cache,					
+									cache_access=>cache_accessL2,
 									mem_access=>mem_access
 									);
-
-			
-
-
-
 	 addressTest <= Iadress when rst='1' else
 						addressTest+4 after 80ns;
      
-	 --ck_l2 <= not ck_l2 	when (ck'event AND ck='1');
+	 ck_l2 <= not ck_l2 	when (ck'event AND ck='1');
 	 --ck_mp <= not ck_mp when (ck_l2'event and ck_l2='1');
 	  
 	  
